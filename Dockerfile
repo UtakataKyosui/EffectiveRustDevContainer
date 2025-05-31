@@ -29,7 +29,21 @@ RUN rustup update \
     && rustup component add clippy rustfmt rust-analyzer \
     && rustup target add wasm32-unknown-unknown
 
-# よく使用されるRustツールのインストール（エラー時のビルド継続とキャッシュ効率化）
+# Cargoディレクトリの事前設定（rootユーザーでの作成を避ける）
+RUN mkdir -p /home/vscode/.cargo/registry \
+    && mkdir -p /home/vscode/.cargo/git \
+    && mkdir -p /home/vscode/.cargo/bin \
+    && chown -R vscode:vscode /home/vscode/.cargo \
+    && chmod -R 755 /home/vscode/.cargo
+
+# 一時的にvscodeユーザーに切り替えてCargoツールをインストール
+USER vscode
+
+# Cargo環境変数を事前に設定
+ENV CARGO_HOME=/home/vscode/.cargo
+ENV PATH=/home/vscode/.cargo/bin:$PATH
+
+# よく使用されるRustツールのインストール（vscodeユーザーで実行）
 RUN set -e; \
     # 必須ツール（エラー時は停止）
     cargo install cargo-watch; \
@@ -44,6 +58,9 @@ RUN set -e; \
     cargo install cargo-tarpaulin || echo "cargo-tarpaulin installation failed, continuing..."; \
     cargo install cargo-criterion || echo "cargo-criterion installation failed, continuing..."
 
+# rootに戻ってシステム設定を継続
+USER root
+
 # Node.js（フロントエンド開発やツール用）
 RUN curl -fsSL https://deb.nodesource.com/setup_18.x | bash - \
     && apt-get install -y nodejs
@@ -53,16 +70,8 @@ RUN mkdir -p /workspaces \
     && chown -R vscode:vscode /workspaces \
     && chmod -R 755 /workspaces
 
-# Cargoディレクトリの作成とPermission設定
-RUN mkdir -p /usr/local/cargo \
-    && chown -R vscode:vscode /usr/local/cargo \
-    && chmod -R 755 /usr/local/cargo
-
-# Rustのtargetディレクトリとレジストリキャッシュ用のディレクトリ作成
-RUN mkdir -p /home/vscode/.cargo/registry \
-    && mkdir -p /home/vscode/.cargo/git \
-    && chown -R vscode:vscode /home/vscode/.cargo \
-    && chmod -R 755 /home/vscode/.cargo
+# /usr/local/cargoディレクトリの削除（権限問題を回避）
+RUN rm -rf /usr/local/cargo
 
 # vscodeユーザーをsudoグループに追加（パスワードなしsudo有効化）
 RUN usermod -aG sudo vscode \
@@ -71,9 +80,9 @@ RUN usermod -aG sudo vscode \
 # 非rootユーザーでの実行
 USER vscode
 
-# Cargoのキャッシュ設定
-ENV CARGO_HOME=/home/vscode/.cargo
-ENV PATH=/home/vscode/.cargo/bin:/usr/local/cargo/bin:$PATH
+# Cargoのキャッシュ設定（既に設定済み）
+# ENV CARGO_HOME=/home/vscode/.cargo
+# ENV PATH=/home/vscode/.cargo/bin:$PATH
 
 # Cargo設定ファイルの作成（Permission最適化）
 RUN mkdir -p /home/vscode/.cargo \
