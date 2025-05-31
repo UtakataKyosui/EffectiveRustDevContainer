@@ -1,0 +1,157 @@
+{
+  "name": "Rust Development Container",
+  "dockerComposeFile": "compose.yaml",
+  "service": "devcontainer",
+  "workspaceFolder": "/workspaces",
+  
+  // コンテナの設定
+  "shutdownAction": "stopCompose",
+  "overrideCommand": false,
+  
+  // VS Code設定
+  "customizations": {
+    "vscode": {
+      // 開発に役立つ拡張機能
+      "extensions": [
+        // Rust開発必須
+        "rust-lang.rust-analyzer",
+        "vadimcn.vscode-lldb",
+        "serayuzgur.crates",
+        
+        // Git関連（コミットメッセージ支援含む）
+        "mhutchie.git-graph",
+        "eamodio.gitlens",
+        "vivaxy.vscode-conventional-commits",
+        "redjue.git-commit-plugin",
+        
+        // データベース関連
+        "ms-ossdata.vscode-postgresql",
+        "mtxr.sqltools",
+        "mtxr.sqltools-driver-pg",
+        
+        // 一般的な開発支援
+        "ms-vscode.vscode-json",
+        "redhat.vscode-yaml",
+        "ms-vscode.vscode-typescript-next",
+        "bradlc.vscode-tailwindcss",
+        
+        // コードフォーマット・品質
+        "esbenp.prettier-vscode",
+        "ms-vscode.vscode-eslint",
+        "streetsidesoftware.code-spell-checker",
+        
+        // テスト・デバッグ支援
+        "ms-vscode.test-adapter-converter",
+        "hbenl.vscode-test-explorer",
+        
+        // 追加の便利ツール
+        "ms-vscode.vscode-docker",
+        "ms-kubernetes-tools.vscode-kubernetes-tools",
+        "formulahendry.auto-rename-tag",
+        "christian-kohler.path-intellisense",
+        "ms-vscode.vscode-markdown-pack",
+        
+        // API開発支援
+        "humao.rest-client",
+        "42crunch.vscode-openapi",
+        
+        // 生産性向上
+        "ms-vscode.vscode-todo-highlight",
+        "gruntfuggly.todo-tree",
+        "oderwat.indent-rainbow",
+        "ms-vscode.vscode-color-theme-pack"
+      ],
+      
+      // VS Code設定
+      "settings": {
+        // Rust設定
+        "rust-analyzer.checkOnSave.command": "clippy",
+        "rust-analyzer.cargo.autoreload": true,
+        "rust-analyzer.inlayHints.enable": true,
+        "rust-analyzer.completion.addCallParentheses": false,
+        
+        // フォーマット設定
+        "editor.formatOnSave": true,
+        "editor.codeActionsOnSave": {
+          "source.fixAll": true,
+          "source.organizeImports": true
+        },
+        
+        // Git設定
+        "git.enableSmartCommit": true,
+        "git.confirmSync": false,
+        "git.autofetch": true,
+        
+        // ターミナル設定
+        "terminal.integrated.shell.linux": "/bin/bash",
+        "terminal.integrated.fontSize": 14,
+        
+        // エディタ設定
+        "editor.minimap.enabled": true,
+        "editor.rulers": [80, 120],
+        "editor.wordWrap": "on",
+        "files.trimTrailingWhitespace": true,
+        "files.insertFinalNewline": true,
+        
+        // 検索・表示設定
+        "search.exclude": {
+          "**/target": true,
+          "**/node_modules": true,
+          "**/.git": true
+        }
+      }
+    }
+  },
+  
+  // ポートフォワーディング
+  "forwardPorts": [3000, 8000, 8080, 5432],
+  "portsAttributes": {
+    "3000": {
+      "label": "Web App",
+      "onAutoForward": "notify"
+    },
+    "8000": {
+      "label": "API Server",
+      "onAutoForward": "notify"
+    },
+    "5432": {
+      "label": "PostgreSQL",
+      "onAutoForward": "silent"
+    }
+  },
+  
+  // コンテナ起動後の実行コマンド（可読性を重視した形式）
+  "postCreateCommand": {
+    "setup": "echo '🚀 DevContainer環境をセットアップ中...'",
+    "db-test": "for i in {1..30}; do if pg_isready -h postgres -p 5432 -U postgres; then echo '✅ PostgreSQLに接続成功'; break; fi; echo '⏳ PostgreSQLの起動を待機中...' && sleep 2; done",
+    "cargo-setup": "if [ -f 'Cargo.toml' ]; then echo '📦 Rust依存関係をプリビルド中...' && cargo fetch; fi",
+    "aliases": "echo 'alias cb=\"cargo build\"' >> ~/.bashrc && echo 'alias cr=\"cargo run\"' >> ~/.bashrc && echo 'alias ct=\"cargo test\"' >> ~/.bashrc && echo 'alias cw=\"cargo watch -x run\"' >> ~/.bashrc && echo 'alias db=\"psql $DATABASE_URL\"' >> ~/.bashrc",
+    "complete": "echo '✅ DevContainer環境のセットアップが完了しました！'"
+  },
+  
+  // 開発用の環境変数
+  "containerEnv": {
+    "DATABASE_URL": "postgres://postgres:postgres@postgres:5432/rust_app",
+    "RUST_LOG": "debug",
+    "RUST_BACKTRACE": "1"
+  },
+  
+  // マウント設定
+  "mounts": [
+    "source=rust-devcontainer-cargo-cache,target=/usr/local/cargo/registry,type=volume",
+    "source=rust-devcontainer-target-cache,target=/workspaces/target,type=volume"
+  ],
+  
+  // 機能の有効化
+  "features": {
+    "ghcr.io/devcontainers/features/common-utils:2": {
+      "installZsh": true,
+      "configureZshAsDefaultShell": true,
+      "installOhMyZsh": true
+    },
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {
+      "version": "latest",
+      "enableNonRootDocker": "true"
+    }
+  }
+}
