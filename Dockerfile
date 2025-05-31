@@ -79,7 +79,10 @@ RUN curl -fsSL https://deb.nodesource.com/setup_18.x | bash - \
 # ワークスペース用のディレクトリ作成とPermission設定
 RUN mkdir -p /workspaces \
 	&& chown -R vscode:vscode /workspaces \
-	&& chmod -R 755 /workspaces
+	&& chmod -R 755 /workspaces \
+	&& mkdir -p /workspaces/target \
+	&& chown -R vscode:vscode /workspaces/target \
+	&& chmod -R 755 /workspaces/target
 
 # 再度権限設定を確実にする（レジストリキャッシュも含めて）
 RUN sudo chown -R vscode:vscode /usr/local/rustup \
