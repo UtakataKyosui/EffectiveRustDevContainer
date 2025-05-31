@@ -24,26 +24,22 @@ RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
         sudo \
     && apt-get autoremove -y && apt-get clean -y && rm -rf /var/lib/apt/lists/*
 
-# Rustツールチェーンのアップデートと必要なコンポーネント追加
-RUN rustup update \
-    && rustup component add clippy rustfmt rust-analyzer \
-    && rustup target add wasm32-unknown-unknown
-
-# Cargoディレクトリの事前設定（rootユーザーでの作成を避ける）
+# vscodeユーザーのCargoディレクトリ事前設定
 RUN mkdir -p /home/vscode/.cargo/registry \
     && mkdir -p /home/vscode/.cargo/git \
     && mkdir -p /home/vscode/.cargo/bin \
     && chown -R vscode:vscode /home/vscode/.cargo \
     && chmod -R 755 /home/vscode/.cargo
 
-# 一時的にvscodeユーザーに切り替えてCargoツールをインストール
+# vscodeユーザーに切り替えてRust環境を設定
 USER vscode
 
-# Cargo環境変数を事前に設定
-ENV CARGO_HOME=/home/vscode/.cargo
-ENV PATH=/home/vscode/.cargo/bin:$PATH
+# Rustツールチェーンの設定（vscodeユーザーで実行）
+RUN rustup update \
+    && rustup component add clippy rustfmt rust-analyzer \
+    && rustup target add wasm32-unknown-unknown
 
-# よく使用されるRustツールのインストール（vscodeユーザーで実行）
+# よく使用されるRustツールのインストール
 RUN set -e; \
     # 必須ツール（エラー時は停止）
     cargo install cargo-watch; \
@@ -80,16 +76,17 @@ RUN usermod -aG sudo vscode \
 # 非rootユーザーでの実行
 USER vscode
 
-# Cargoのキャッシュ設定（既に設定済み）
-# ENV CARGO_HOME=/home/vscode/.cargo
-# ENV PATH=/home/vscode/.cargo/bin:$PATH
+# Cargoのキャッシュ設定とPATH設定
+ENV CARGO_HOME=/home/vscode/.cargo
+ENV PATH=/home/vscode/.cargo/bin:/usr/local/rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin:$PATH
 
 # Cargo設定ファイルの作成（Permission最適化）
 RUN mkdir -p /home/vscode/.cargo \
     && echo '[build]' > /home/vscode/.cargo/config.toml \
     && echo 'target-dir = "/workspaces/target"' >> /home/vscode/.cargo/config.toml \
     && echo '[registries.crates-io]' >> /home/vscode/.cargo/config.toml \
-    && echo 'protocol = "sparse"' >> /home/vscode/.cargo/config.toml
+    && echo 'protocol = "sparse"' >> /home/vscode/.cargo/config.toml \
+    && chown -R vscode:vscode /home/vscode/.cargo
 
 # 環境変数設定
 ENV RUST_LOG=debug
@@ -97,5 +94,7 @@ ENV RUST_BACKTRACE=1
 ENV USER=vscode
 ENV HOME=/home/vscode
 
-# umask設定（新しく作成されるファイル・ディレクトリのデフォルトPermission）
-RUN echo "umask 022" >> /home/vscode/.bashrc
+# umask設定とPATH設定を.bashrcに追加
+RUN echo "umask 022" >> /home/vscode/.bashrc \
+    && echo 'export PATH=/home/vscode/.cargo/bin:/usr/local/rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin:$PATH' >> /home/vscode/.bashrc \
+    && echo 'export CARGO_HOME=/home/vscode/.cargo' >> /home/vscode/.bashrc
